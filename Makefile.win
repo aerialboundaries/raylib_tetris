@@ -1,0 +1,45 @@
+# ====================================================
+# Makefile.win (Windows w64devkit用 - 完全固定版)
+# ====================================================
+
+
+NAME        := a.out.exe
+OBJDIR_WIN  := obj_win
+
+# WSLからWindows側に環境変数 PATH を強制的に翻訳して引き継がせる魔法の1行
+export WSLENV := PATH/l
+
+# Windows側のgccコンパイラを【絶対パス＋.exe付き】で完全固定
+
+CC          := /mnt/c/raylib/w64devkit/bin/gcc.exe
+
+W64DEVKIT_BIN := /mnt/c/raylib/w64devkit/bin
+
+# Windows用raylibのパス
+RAYLIB_DIR  := C:/raylib/w64devkit
+
+CFLAGS      := -g -Wall -Wextra -std=c99 -pedantic-errors -MMD -MP -I$(RAYLIB_DIR)/include
+LIBS        := -L$(RAYLIB_DIR)/lib -lraylib -lopengl32 -lgdi32 -lwinmm
+
+
+SRCS        := $(wildcard *.c)
+OBJS_WIN    := $(SRCS:%.c=$(OBJDIR_WIN)/%.o)
+DEPS_WIN    := $(OBJS_WIN:.o=.d)
+
+.PHONY: all
+
+all: $(NAME)
+
+# リンク工程（.exe の作成）
+$(NAME): $(OBJS_WIN)
+	export PATH="$(W64DEVKIT_BIN):$$PATH" && $(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	@chmod 755 $@
+
+	@echo "--- Windows Nativeの $(NAME) を実行権限付きで作成しました ---"
+
+# コンパイル工程（.o の作成）★ここを以下のように修復します！
+$(OBJDIR_WIN)/%.o: %.c
+	@mkdir -p $(dir $@)
+	export PATH="$(W64DEVKIT_BIN):$$PATH" && $(CC) $(CFLAGS) -c $< -o $@
+
+-include $(DEPS_WIN)
