@@ -1,4 +1,7 @@
-NAME        := a.out
+# フォルダ名を取得して実行ファイル名に設定
+DIR_NAME    := $(notdir $(CURDIR))
+NAME        := $(DIR_NAME)
+
 CC          := gcc
 CFLAGS      := -g -Wall -Wextra -std=c99 -pedantic-errors -MMD -MP
 
@@ -79,4 +82,6 @@ run: all
 win:
 	make -f Makefile.win
 
-
+.PNONY: win-run winrun
+win-run winrun:
+	make -f Makefile.win run

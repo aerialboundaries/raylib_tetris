@@ -3,7 +3,12 @@
 # ====================================================
 
 
-NAME        := a.out.exe
+# カレントディレクトリの絶対パスから末尾のフォルダ名を取得し、.exe を付与
+DIR_NAME := $(notdir $(patsubst %/,%,$(dir $(CURDIR))))
+# またはシンプルに以下の記述でも取得可能です
+# DIR_NAME := $(notdir $(CURDIR))
+
+NAME     := $(DIR_NAME).exe
 OBJDIR_WIN  := obj_win
 
 # WSLからWindows側に環境変数 PATH を強制的に翻訳して引き継がせる魔法の1行
@@ -43,3 +48,9 @@ $(OBJDIR_WIN)/%.o: %.c
 	export PATH="$(W64DEVKIT_BIN):$$PATH" && $(CC) $(CFLAGS) -c $< -o $@
 
 -include $(DEPS_WIN)
+
+# Windows版の実行ターゲット
+.PHONY: run
+run: all
+	./$(NAME)
+
