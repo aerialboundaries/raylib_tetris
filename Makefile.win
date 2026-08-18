@@ -4,7 +4,7 @@
 
 
 # カレントディレクトリの絶対パスから末尾のフォルダ名を取得し、.exe を付与
-DIR_NAME := $(notdir $(patsubst %/,%,$(dir $(CURDIR))))
+DIR_NAME := $(notdir $(CURDIR))
 # またはシンプルに以下の記述でも取得可能です
 # DIR_NAME := $(notdir $(CURDIR))
 
