@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include "block.h"
-
 #include "blocks.h"
 #include "config.h"
 #include "error.h"
@@ -31,6 +30,10 @@ struct game_type {
   int lockResetCount; // 猶予タイマーをリセットした回数
 
   int lowestRowReached; // このブロックが今回の落下で到達した最も深い行
+
+  /* --- DAS (Auto-Repeat) 関連の状態 --- */
+  int das_direction; // 現在押されている方向(-1: 左, 1: 右, 0: なし)
+  int das_timer;     // 長押し時間をカウントするタイマー
 };
 
 // internal functions (prototypes)
@@ -53,6 +56,9 @@ static bool can_move_down(Game game);
 static int get_block_lowest_row(Game game);
 static void reset_lock_delay_if_grounded(Game game);
 static void start_new_block_tracking(Game game);
+
+/* For DAS movement */
+static void handle_das_movement(Game game);
 
 Game create_game(void)
 
@@ -83,6 +89,10 @@ Game create_game(void)
   PlayMusicStream(game->music);
   game->rotateSound = LoadSound("Sounds/rotate.mp3");
   game->clearSound = LoadSound("Sounds/clear.mp3");
+
+  /* DAS関連メンバーのリセット */
+  game->das_direction = 0;
+  game->das_timer = 0;
 
   return game;
 }
@@ -128,28 +138,30 @@ void game_draw(Game game)
 
 void game_handle_input(Game game)
 {
-
-  int keyPressed = GetKeyPressed();
-  if (game->gameOver && keyPressed != 0) {
-    game->gameOver = false;
-    game_reset(game);
+  // ゲームオーバー中の処理
+  if (game->gameOver) {
+    // Enterキー、またはspaceが押されたときだけゲームを再開する
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
+      game->gameOver = false;
+      game_reset(game);
+    }
+    return;
   }
 
+  // 回転およびゲームオーバー解除などの単発入力処理
+  int keyPressed = GetKeyPressed();
   switch (keyPressed) {
-
-  case KEY_LEFT:
-  case KEY_A:
-    game_move_block_left(game);
-    break;
-  case KEY_RIGHT:
-  case KEY_D:
-    game_move_block_right(game);
-    break;
   case KEY_UP:
   case KEY_SPACE:
+  case KEY_W:
     rotate_block(game);
     break;
   }
+
+  // 左右移動（DAS)の処理
+  handle_das_movement(game);
+
+  // ソフトドロップ処理
   // 【修正】押しっぱなし（長押し）を検出する処理
   // ゲームオーバーでない、かつ下キーが押されている間は毎フレーム実行される
   static int soft_drop_counter = 0;
@@ -162,16 +174,63 @@ void game_handle_input(Game game)
       // 実際に1マス下に移動できた場合のみ加点する
       // （接地していて動けなかった場合は加点しない）
       if (game_move_block_down(game)) {
-
         update_score(game, 0, 1);
       }
     }
   } else {
-    soft_drop_counter = 0; // keyを話したらリセット
+    soft_drop_counter = 0; // keyを放したらリセット
   }
 }
 
 // internal functions (implementations)
+// 左右長押し移動（DAS)を管理する内部関数
+static void handle_das_movement(Game game)
+{
+  if (game->gameOver)
+    return;
+
+  bool left_down = IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A);
+  bool right_down = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
+
+  /* 両方押されている、またはどちらも押されていない場合はDASをリセット */
+  if (left_down == right_down) {
+    game->das_direction = 0;
+    game->das_timer = 0;
+    return;
+  }
+
+  int current_dir = left_down ? -1 : 1;
+
+  /* 新しくキーが押された瞬間、または方向が切り替わった時 */
+  if (game->das_direction != current_dir) {
+    game->das_direction = current_dir;
+    game->das_timer = 0;
+
+    // 押された瞬間にまず1マス動かす
+    if (current_dir == -1) {
+      game_move_block_left(game);
+    } else {
+      game_move_block_right(game);
+    }
+    return;
+  }
+
+  // 同じ方向が押され続けている場合
+  game->das_timer++;
+
+  // 溜め時間(DAS_DELAY)を超えたら高速移動を開始する
+  if (game->das_timer >= DAS_DELAY) {
+    // DAS_SPEEDフレーム毎に1マス移動させる
+    if ((game->das_timer - DAS_DELAY) % DAS_SPEED == 0) {
+      if (current_dir == -1) {
+        game_move_block_left(game);
+      } else {
+        game_move_block_right(game);
+      }
+    }
+  }
+}
+
 static void refill_blocks(Game game)
 {
   for (int i = 0; i < 7; i++) {
@@ -446,6 +505,10 @@ static void game_reset(Game game)
   game->nextBlock = create_block(get_random_block_id(game));
   start_new_block_tracking(game);
   game->score = 0;
+
+  /* DAS関連メンバーのリセット */
+  game->das_direction = 0;
+  game->das_timer = 0;
 }
 
 static void update_score(Game game, int linesCleared, int moveDownPoints)

@@ -4,6 +4,9 @@
 #define GRID_OFFSET_X 11
 #define GRID_OFFSET_Y 11
 #define SIDEBAR_X 320
+// キーを押してから高速移動が始まるまでの待ちフレーム数。（約0.16秒）
+#define DAS_DELAY 10
+#define DAS_SPEED 2 // 高速移動中の移動間隔（2フレームに1マス移動）
 
 // --- ロック猶予（Lock Delay）関連 ---
 // ブロックが接地してからロックされるまでの猶予時間（秒）
