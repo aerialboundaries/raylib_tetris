@@ -25,6 +25,12 @@ int main(void)
   srand((unsigned int)time(NULL));
 
   InitWindow(500, 620, "raylib Tetris");
+
+  /* open with monitor 0 */
+  if (TARGET_MONITOR < GetMonitorCount()) {
+    SetWindowMonitor(TARGET_MONITOR);
+  }
+
   SetTargetFPS(60);
 
   Font font = LoadFontEx("Font/monogram.ttf", 64, 0, 0);
