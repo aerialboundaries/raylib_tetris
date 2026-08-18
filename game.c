@@ -9,8 +9,11 @@
 #include "game.h"
 #include "grid.h"
 
+#define GAMEPAD_ID 0 // 使用するゲームパッドのID（基本は0）
+
 struct game_type {
   Grid grid;
+
   int remaining_blocks[7]; // array to store remaining block id
 
   int block_count; // number of remaining blocks
@@ -19,6 +22,7 @@ struct game_type {
   bool gameOver;
   int score;
   Music music;
+
   Sound rotateSound;
 
   Sound clearSound;
@@ -61,7 +65,6 @@ static void start_new_block_tracking(Game game);
 static void handle_das_movement(Game game);
 
 Game create_game(void)
-
 {
   Game game = malloc(sizeof(struct game_type));
   if (game == NULL)
@@ -83,14 +86,14 @@ Game create_game(void)
   game->score = 0;
   InitAudioDevice();
   game->music = LoadMusicStream("Sounds/music.mp3");
-  game->music.looping =
-      true; // ループ再生を明示的に有効化（ベストプラクティス：
-            // デフォルト値に依存せず意図を明示する）
+  game->music.looping = true;
   PlayMusicStream(game->music);
   game->rotateSound = LoadSound("Sounds/rotate.mp3");
+
   game->clearSound = LoadSound("Sounds/clear.mp3");
 
   /* DAS関連メンバーのリセット */
+
   game->das_direction = 0;
   game->das_timer = 0;
 
@@ -98,7 +101,6 @@ Game create_game(void)
 }
 
 void destroy_game(Game game)
-
 {
   if (game == NULL)
     return;
@@ -107,6 +109,7 @@ void destroy_game(Game game)
   if (game->currentBlock)
     destroy_block(game->currentBlock);
   if (game->nextBlock)
+
     destroy_block(game->nextBlock);
 
   UnloadSound(game->rotateSound);
@@ -119,6 +122,7 @@ void destroy_game(Game game)
 }
 
 void game_draw(Game game)
+
 {
   grid_draw(game->grid);
   draw_block(game->currentBlock, GRID_OFFSET_X, GRID_OFFSET_Y);
@@ -140,8 +144,10 @@ void game_handle_input(Game game)
 {
   // ゲームオーバー中の処理
   if (game->gameOver) {
-    // Enterキー、またはspaceが押されたときだけゲームを再開する
-    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
+    // Enter、Space、またはゲームパッドのStart/Aボタンで再開
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) ||
+        IsGamepadButtonPressed(GAMEPAD_ID, GAMEPAD_BUTTON_MIDDLE_RIGHT) ||
+        IsGamepadButtonPressed(GAMEPAD_ID, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
       game->gameOver = false;
       game_reset(game);
     }
@@ -150,47 +156,57 @@ void game_handle_input(Game game)
 
   // 回転およびゲームオーバー解除などの単発入力処理
   int keyPressed = GetKeyPressed();
-  switch (keyPressed) {
-  case KEY_UP:
-  case KEY_SPACE:
-  case KEY_W:
+  bool rotatePressed =
+      (keyPressed == KEY_UP || keyPressed == KEY_SPACE ||
+       keyPressed == KEY_W) ||
+      IsGamepadButtonPressed(GAMEPAD_ID, GAMEPAD_BUTTON_RIGHT_FACE_DOWN) ||
+      IsGamepadButtonPressed(GAMEPAD_ID, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT) ||
+      IsGamepadButtonPressed(GAMEPAD_ID, GAMEPAD_BUTTON_LEFT_FACE_UP);
+
+  if (rotatePressed) {
     rotate_block(game);
-    break;
   }
 
   // 左右移動（DAS)の処理
   handle_das_movement(game);
 
   // ソフトドロップ処理
-  // 【修正】押しっぱなし（長押し）を検出する処理
-  // ゲームオーバーでない、かつ下キーが押されている間は毎フレーム実行される
   static int soft_drop_counter = 0;
 
-  if (!game->gameOver && (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S))) {
+  bool softDropPressed =
+      IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S) ||
+      IsGamepadButtonDown(GAMEPAD_ID, GAMEPAD_BUTTON_LEFT_FACE_DOWN) ||
+      (GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_LEFT_Y) > 0.5f);
+
+  if (!game->gameOver && softDropPressed) {
     soft_drop_counter++;
     if (soft_drop_counter >= 3) { // 3フレームに一回だけ落とす
       soft_drop_counter = 0;
 
-      // 実際に1マス下に移動できた場合のみ加点する
-      // （接地していて動けなかった場合は加点しない）
       if (game_move_block_down(game)) {
         update_score(game, 0, 1);
       }
     }
   } else {
-    soft_drop_counter = 0; // keyを放したらリセット
+    soft_drop_counter = 0; // キー/ボタンを放したらリセット
   }
 }
 
-// internal functions (implementations)
 // 左右長押し移動（DAS)を管理する内部関数
 static void handle_das_movement(Game game)
 {
   if (game->gameOver)
     return;
 
-  bool left_down = IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A);
-  bool right_down = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
+  bool left_down =
+      IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A) ||
+      IsGamepadButtonDown(GAMEPAD_ID, GAMEPAD_BUTTON_LEFT_FACE_LEFT) ||
+      (GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_LEFT_X) < -0.5f);
+
+  bool right_down =
+      IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D) ||
+      IsGamepadButtonDown(GAMEPAD_ID, GAMEPAD_BUTTON_LEFT_FACE_RIGHT) ||
+      (GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_LEFT_X) > 0.5f);
 
   /* 両方押されている、またはどちらも押されていない場合はDASをリセット */
   if (left_down == right_down) {
@@ -201,7 +217,8 @@ static void handle_das_movement(Game game)
 
   int current_dir = left_down ? -1 : 1;
 
-  /* 新しくキーが押された瞬間、または方向が切り替わった時 */
+  /* 新しくキー/ボタンが押された瞬間、または方向が切り替わった時 */
+
   if (game->das_direction != current_dir) {
     game->das_direction = current_dir;
     game->das_timer = 0;
@@ -221,6 +238,7 @@ static void handle_das_movement(Game game)
   // 溜め時間(DAS_DELAY)を超えたら高速移動を開始する
   if (game->das_timer >= DAS_DELAY) {
     // DAS_SPEEDフレーム毎に1マス移動させる
+
     if ((game->das_timer - DAS_DELAY) % DAS_SPEED == 0) {
       if (current_dir == -1) {
         game_move_block_left(game);
@@ -233,7 +251,9 @@ static void handle_das_movement(Game game)
 
 static void refill_blocks(Game game)
 {
+
   for (int i = 0; i < 7; i++) {
+
     game->remaining_blocks[i] = i + 1; // L_block(1) to Z_block(7)
   }
 
@@ -249,7 +269,6 @@ static int get_random_block_id(Game game)
   int randomIndex = rand() % game->block_count;
   int blockId = game->remaining_blocks[randomIndex];
 
-  // delete selected item from array and shift the last item
   for (int i = randomIndex; i < game->block_count - 1; i++) {
     game->remaining_blocks[i] = game->remaining_blocks[i + 1];
   }
@@ -259,14 +278,14 @@ static int get_random_block_id(Game game)
 }
 
 static void game_move_block_left(Game game)
-{
 
+{
   if (!game->gameOver) {
     move_block(game->currentBlock, 0, -1);
+
     if (is_block_outside(game) || !block_fits(game)) {
       move_block(game->currentBlock, 0, 1);
     } else {
-      // 移動に成功した場合、接地中であればロック猶予をリセット
       reset_lock_delay_if_grounded(game);
     }
   }
@@ -274,14 +293,12 @@ static void game_move_block_left(Game game)
 
 static void game_move_block_right(Game game)
 {
-
   if (!game->gameOver) {
     move_block(game->currentBlock, 0, 1);
-    if (is_block_outside(game) || !block_fits(game)) {
 
+    if (is_block_outside(game) || !block_fits(game)) {
       move_block(game->currentBlock, 0, -1);
     } else {
-      // 移動に成功した場合、接地中であればロック猶予をリセット
       reset_lock_delay_if_grounded(game);
     }
   }
@@ -289,27 +306,21 @@ static void game_move_block_right(Game game)
 
 bool game_move_block_down(Game game)
 {
-
   if (game->gameOver)
     return false;
 
   move_block(game->currentBlock, 1, 0);
   if (is_block_outside(game) || !block_fits(game)) {
-    // これ以上下に動けない＝接地。ここでは即ロックしない。
-    // ロックするかどうかはgame_update内のロック猶予タイマーに任せる。
     move_block(game->currentBlock, -1, 0);
     return false;
   }
 
-  // 下に移動できた＝空空中いるのでロック猶予を解除
   game->lockDelayActive = false;
 
-  // 今回の落下で新しく到達した深さであれば、リセット回数を0に戻す。
-  // これにより「実際に下へ進んでいる限りは粘れる」という
-  // Infinity的な挙動になる（横移動や回転だけでは粘り続けられない）。
   int currentLowestRow = get_block_lowest_row(game);
   if (currentLowestRow > game->lowestRowReached) {
     game->lowestRowReached = currentLowestRow;
+
     game->lockResetCount = 0;
   }
 
@@ -317,14 +328,11 @@ bool game_move_block_down(Game game)
 }
 
 static bool is_block_outside(Game game)
-
 {
   Position tiles[4];
   GetCellPositions(game->currentBlock, tiles);
   for (int i = 0; i < 4; i++) {
-    // grid.h に定義されているNUMROWS, NUMCOLSの範囲外かどうかを判定
     if (tiles[i].row < 0 || tiles[i].row >= NUMROWS || tiles[i].column < 0 ||
-
         tiles[i].column >= NUMCOLS) {
       return true;
     }
@@ -334,55 +342,43 @@ static bool is_block_outside(Game game)
 
 static void rotate_block(Game game)
 {
-
   if (!game->gameOver) {
     rotate_block_state(game->currentBlock);
 
     if (is_block_outside(game) || !block_fits(game)) {
-
-      // 元に戻す処理
       undo_block_rotation(game->currentBlock);
+
     } else {
       PlaySound(game->rotateSound);
-      // 回転に成功した場合、接地中であればロック猶予をリセット
       reset_lock_delay_if_grounded(game);
     }
   }
 }
 
-// 【重要修正】メモリの二重解放やクラッシュ、不要な配列更新を防ぐよう順序を整理
 static void lock_block(Game game)
 {
   Position tiles[4];
   GetCellPositions(game->currentBlock, tiles);
 
-  // 1. ブロックをグリッドに固定
   for (int i = 0; i < 4; i++) {
     set_cell_value(game->grid, tiles[i].row, tiles[i].column,
                    GetBlockId(game->currentBlock));
   }
 
-  // 2. 使い終わった currentBlock のメモリを解放
   destroy_block(game->currentBlock);
 
-  // 3. 次のブロック (nextBlock) を現在のブロックに引き継ぐ
   game->currentBlock = game->nextBlock;
-  game->nextBlock = NULL; // 重複解放を防ぐために一度 NULL に退避
 
-  // 新しいブロックの追跡（ロック猶予の状態リセット）を開始
+  game->nextBlock = NULL;
+
   start_new_block_tracking(game);
 
-  // 4. 引き継いだ currentBlock がすでに置けない状態ならゲームオーバー
   if (!block_fits(game)) {
-
     game->gameOver = true;
   }
 
-  // 5. 新しい「次のブロック」を生成
-
   game->nextBlock = create_block(get_random_block_id(game));
 
-  // 6. ライン消去判定とスコアの更新
   int rowsCleared = clear_full_rows(game->grid);
   if (rowsCleared > 0) {
     PlaySound(game->clearSound);
@@ -395,7 +391,6 @@ static bool block_fits(Game game)
   Position tiles[4];
   GetCellPositions(game->currentBlock, tiles);
   for (int i = 0; i < 4; i++) {
-    // グリッド上の該当セルが空(0)かどうかをチェックする処理
     if (get_cell_value(game->grid, tiles[i].row, tiles[i].column) != 0) {
       return false;
     }
@@ -403,7 +398,6 @@ static bool block_fits(Game game)
   return true;
 }
 
-// 現在のブロックが、盤面の状態を変えずに「あと1マス下に動けるか」を判定する。
 static bool can_move_down(Game game)
 {
   move_block(game->currentBlock, 1, 0);
@@ -414,10 +408,11 @@ static bool can_move_down(Game game)
   return fits;
 }
 
-// 現在のブロックが占めている4マスのうち、最も下（rowの値が最大）の行を返す。
 static int get_block_lowest_row(Game game)
 {
+
   Position tiles[4];
+
   GetCellPositions(game->currentBlock, tiles);
 
   int lowestRow = tiles[0].row;
@@ -430,11 +425,11 @@ static int get_block_lowest_row(Game game)
   return lowestRow;
 }
 
-// 接地中（ロック猶予タイマー作動中）であれば、タイマーをリセットする。
 static void reset_lock_delay_if_grounded(Game game)
 {
+
   if (!game->lockDelayActive)
-    return; // 空中にいるので、そもそもリセットする対象がない
+    return;
 
   if (game->lockResetCount < MAX_LOCK_RESETS) {
     game->lockDelayStartTime = GetTime();
@@ -442,15 +437,13 @@ static void reset_lock_delay_if_grounded(Game game)
   }
 }
 
-// currentBlockが新しく出現した（スポーンした）ときに呼ぶ。
 static void start_new_block_tracking(Game game)
 {
   game->lockDelayActive = false;
+
   game->lockResetCount = 0;
   game->lowestRowReached = get_block_lowest_row(game);
 }
-
-// 毎フレーム呼び出す。ロック猶予タイマーの管理と、猶予切れになったブロックの固定を行う。
 
 void game_update(Game game)
 {
@@ -458,28 +451,22 @@ void game_update(Game game)
     return;
 
   if (can_move_down(game)) {
-    // まだ下に空間があるので、接地しておらずロック猶予も不要
     game->lockDelayActive = false;
     return;
   }
 
-  // ここに来た時点で「接地している」状態
   if (!game->lockDelayActive) {
-    // 接地した瞬間なので、猶予タイマーを開始する
     game->lockDelayActive = true;
-
     game->lockDelayStartTime = GetTime();
+
     return;
   }
 
-  // 猶予タイマーが開始済みで、かつ猶予時間を過ぎていたらロックする
   if (GetTime() - game->lockDelayStartTime >= LOCK_DELAY) {
     lock_block(game);
     game->lockDelayActive = false;
   }
 }
-
-// 外部（main.c）から現在のロック猶予状態を参照するゲッター関数
 
 bool game_is_lock_delay_active(Game game)
 {
@@ -488,6 +475,7 @@ bool game_is_lock_delay_active(Game game)
 
 static void game_reset(Game game)
 {
+
   initialize_grid(game->grid);
   game->block_count = 0;
   refill_blocks(game);
@@ -496,7 +484,9 @@ static void game_reset(Game game)
     destroy_block(game->currentBlock);
     game->currentBlock = NULL;
   }
+
   if (game->nextBlock) {
+
     destroy_block(game->nextBlock);
     game->nextBlock = NULL;
   }
@@ -506,7 +496,6 @@ static void game_reset(Game game)
   start_new_block_tracking(game);
   game->score = 0;
 
-  /* DAS関連メンバーのリセット */
   game->das_direction = 0;
   game->das_timer = 0;
 }
@@ -516,19 +505,19 @@ static void update_score(Game game, int linesCleared, int moveDownPoints)
   switch (linesCleared) {
   case 1:
     game->score += 100;
-
     break;
+
   case 2:
     game->score += 300;
     break;
   case 3:
-
     game->score += 500;
     break;
   case 4:
     game->score += 800;
     break;
   default:
+
     break;
   }
   game->score += moveDownPoints;
@@ -548,8 +537,8 @@ void game_update_music(Game game)
 {
   UpdateMusicStream(game->music);
 
-  // raylibのMP3ストリーミングが途切れたときの安全対策
   if (!IsMusicStreamPlaying(game->music)) {
+
     PlayMusicStream(game->music);
   }
 }
