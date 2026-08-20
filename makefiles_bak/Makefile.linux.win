@@ -1,0 +1,91 @@
+# ====================================================
+# OS自動判定・コマンド共通化 Makefile
+# ====================================================
+
+# 1. 基本設定
+DIR_NAME    := $(notdir $(CURDIR))
+SRCS        := $(wildcard *.c)
+
+# 2. OSの自動判定
+# Windows環境（cmd/powershell/w64devkit）では OS=Windows_NT が定義されています
+ifeq ($(OS),Windows_NT)
+    DETECTED_OS := Windows
+else
+    # Linux / WSL環境の判定
+    UNAME_S     := $(shell uname -s 2>/dev/null)
+    ifeq ($(UNAME_S),Linux)
+        DETECTED_OS := Linux
+    else
+        DETECTED_OS := Unknown
+    endif
+endif
+
+# 3. 共通コンパイラ・基本フラグ
+CC          := gcc
+BASE_CFLAGS := -g -Wall -Wextra -std=c99 -pedantic-errors -MMD -MP
+
+# 4. OSごとの設定自動切り替え
+ifeq ($(DETECTED_OS),Windows)
+    # --- Windows (w64devkit) 用設定 ---
+    RAYLIB_WIN_DIR := C:/raylib/w64devkit
+
+    NAME        := $(DIR_NAME).exe
+    OBJDIR      := obj_win
+    CFLAGS      := $(BASE_CFLAGS) -I$(RAYLIB_WIN_DIR)/include
+    LIBS        := -L$(RAYLIB_WIN_DIR)/lib -lraylib -lopengl32 -lgdi32 -lwinmm
+    RUN_CMD     := ./$(NAME)
+else
+    # --- Linux / WSL 用設定 ---
+    NAME        := $(DIR_NAME)
+    OBJDIR      := obj
+    CFLAGS      := $(BASE_CFLAGS)
+    LIBS        := -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+    RUN_CMD     := ./$(NAME)
+endif
+
+# オブジェクトファイル・依存関係ファイルの定義
+OBJS        := $(SRCS:%.c=$(OBJDIR)/%.o)
+DEPS        := $(OBJS:.o=.d)
+
+# ----------------------------------------------------
+# ターゲットルール
+# ----------------------------------------------------
+
+.PHONY: all run clean fclean re debug os-info
+
+# 共通ビルドターゲット (WindowsでもLinuxでも `make` でOK)
+all: os-info $(NAME)
+
+$(NAME): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	@echo "--- [$(DETECTED_OS)] ビルドが完了しました: $@ ---"
+
+$(OBJDIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# 共通実行ターゲット (WindowsでもLinuxでも `make run` でOK)
+run: all
+	$(RUN_CMD)
+
+# ----------------------------------------------------
+# ユーティリティ・依存関係
+# ----------------------------------------------------
+
+-include $(DEPS)
+
+# 判定されたOS情報の表示
+os-info:
+	@echo "--- 検出されたOS環境: $(DETECTED_OS) ---"
+
+clean:
+	rm -rf obj obj_win
+
+fclean: clean
+	rm -f $(DIR_NAME) $(DIR_NAME).exe
+
+re: fclean all
+
+# デバッグ用ビルド (Linux環境時に機能)
+debug: CFLAGS += -fsanitize=integer -fsanitize=address -fsanitize=leak
+debug: re
