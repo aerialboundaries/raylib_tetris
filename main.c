@@ -1,3 +1,13 @@
+/* TODO
+ * 1. web version
+ * 2. title screen
+ * 3. game level 1-15 with delta time
+ * 3. Right / Left Rotation
+ * 4. SRS / TSPIN
+ * 5. sound change
+ * 6. sprite for tetrimino
+ */
+
 #include <raylib.h>
 #include <stdio.h>
 #include <stdlib.h>
