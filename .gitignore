@@ -1,24 +1,28 @@
-# まずすべて無視
-*
+# ====================================================
+# CMake + C言語プロジェクト用 .gitignore (標準設定)
+# ====================================================
 
-# .c と .h と.cppは無視しない
-!*.c
-!*.cpp
-!*.h
+# 1. CMakeのビルド用フォルダ（ここを丸ごと除外するのが最重要です）
+build/
+bin/
+out/
 
-# Makefile も無視しない
-!Makefile
+# 2. 自動生成される実行ファイルや中間ファイル
+*.o
+*.obj
+*.exe
+*.out
+*.a
+*.lib
+*.so
+*.dylib
+compile_commands.json
 
-# Makefile.win も無視しない
-!Makefile.win
-
-# サブディレクトリも対象にする場合
-!*/
-
-# .gitignore
-!*.gitignore
-
-# .txt .mdも無視しない
-!*.txt
-!*.md
-
+# 3. エディタ・OS固有の一時ファイル
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
