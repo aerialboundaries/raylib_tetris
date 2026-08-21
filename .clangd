@@ -1,0 +1,39 @@
+# ----------------------------------------------------
+# Windows (w64devkit) / WSL (Ubuntu) 共用 .clangd
+# ----------------------------------------------------
+
+# 1. コンパイルデータベースの自動探索
+# build/linux や build/win などのプリセット出力先からも compile_commands.json を探索
+CompilationDatabase: "build"
+
+# 2. 全環境共通のフラグ設定
+CompileFlags:
+  # 各OS環境の標準ライブラリ・ヘッダーを自動読み込み
+  Compiler: gcc
+  QueryDriver:
+    # Windows (w64devkit) 用
+    - "C:/raylib/w64devkit/bin/gcc.exe"
+    - "C:/raylib/w64devkit/bin/g++.exe"
+    # WSL (Ubuntu) / Cross Compiler 用
+    - "/usr/bin/gcc"
+    - "/usr/bin/g++"
+    - "/usr/bin/x86_64-w64-mingw32-gcc"
+
+  # 言語規格と基本的な補完パス
+  Add:
+    - "-std=c99"
+    - "-Wall"
+    - "-Wextra"
+
+# 3. 動作環境ごとの設定分岐
+If:
+  # Linux (WSL) 環境で動いている場合
+  PathMatch: .*
+
+  # WSL側で raylib のヘッダー補完を補強（必要に応じて調整）
+  CompileFlags:
+    Add:
+      - "-I/usr/local/include"
+
+Diagnostics:
+  UnusedIncludes: Strict
