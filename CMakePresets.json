@@ -41,7 +41,9 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/web",
       "cacheVariables": {
-
+        "PLATFORM": "Web",
+        "CMAKE_BUILD_TYPE": "Release",
+        "COMPILE_WARNING_AS_ERROR": "OFF",
         "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
 
       }

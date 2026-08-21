@@ -8,44 +8,52 @@ project(${PROJECT_EXEC_NAME} C)
 # 1. 基本設定
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-add_compile_options(-Wall -Wextra -pedantic-errors)
 
 # 2. ソースファイルの自動収集
-
 file(GLOB SRCS "*.c")
 file(GLOB HDRS "*.h")
 
 # 3. raylibの依存関係取得
 if(EMSCRIPTEN)
-
     include(FetchContent)
 
     FetchContent_Declare(
         raylib
         GIT_REPOSITORY https://github.com/raysan5/raylib.git
-
-        GIT_TAG        5.5
+        GIT_TAG        6.0 
         GIT_SHALLOW    TRUE
     )
     set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(raylib)
+
+    # raylib ターゲット内部の警告ログ出力を抑止 (-w)
+
+    if (TARGET raylib)
+        target_compile_options(raylib PRIVATE -w)
+
+    endif()
+
+
 elseif(NOT CMAKE_CROSSCOMPILING)
     # Native Linux ビルドの時だけ find_package を実行
     find_package(raylib CONFIG QUIET)
 endif()
 
 # 4. 実行ファイルの定義
+
 add_executable(${PROJECT_NAME} ${SRCS})
+
+# 自身のソースコードにのみ厳格な警告フラグを適用
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic-errors)
+
 
 # 5. インクルードパスの設定
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include")
     target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-
 endif()
+
 
 # 6. プラットフォーム別のビルド・リンク設定
 if(EMSCRIPTEN)
@@ -54,8 +62,10 @@ if(EMSCRIPTEN)
     # Web (Emscripten) ビルド
     # ----------------------------------------------------
     target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
+
     
     # 出力ファイルの拡張子を .html に設定
+    set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "index")
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
 
     # アセット（Font, Sound）のプリロード設定とEmscripten専用フラグ
@@ -65,11 +75,11 @@ if(EMSCRIPTEN)
         string(APPEND EMSCRIPTEN_LINK_FLAGS " --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/Font@/Font")
     endif()
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Sound")
+
         string(APPEND EMSCRIPTEN_LINK_FLAGS " --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/Sound@/Sound")
     endif()
 
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "${EMSCRIPTEN_LINK_FLAGS}")
-
 
 elseif(WIN32 OR MINGW OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
     # ----------------------------------------------------
@@ -79,14 +89,15 @@ elseif(WIN32 OR MINGW OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".exe")
 
     # 独立した raylib のパス指定 (WSL経由 / Windows直接の双方に対応)
+
     if(EXISTS "/mnt/c/raylib/include")
         target_include_directories(${PROJECT_NAME} BEFORE PRIVATE "/mnt/c/raylib/include")
         target_link_directories(${PROJECT_NAME} PRIVATE "/mnt/c/raylib/lib")
     elseif(EXISTS "C:/raylib/include")
         target_include_directories(${PROJECT_NAME} BEFORE PRIVATE "C:/raylib/include")
-
         target_link_directories(${PROJECT_NAME} PRIVATE "C:/raylib/lib")
     endif()
+
 
     target_link_libraries(${PROJECT_NAME} PRIVATE raylib opengl32 gdi32 winmm)
 
@@ -99,7 +110,6 @@ else()
 endif()
 
 # 7. カスタムターゲット: make run の定義 (Emscripten以外で有効)
-
 if(NOT EMSCRIPTEN)
     add_custom_target(run
         COMMAND $<TARGET_FILE:${PROJECT_NAME}>

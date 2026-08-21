@@ -43,7 +43,7 @@ win:
 web:
 	@echo "=== [Web (Emscripten / WSL)] ビルドを開始します ==="
 	emcmake cmake --preset web
-	cmake --build build/web
+	emmake make -C build/web
 
 	@echo "=== [Web (Emscripten / WSL)] ビルド完了 ==="
 
