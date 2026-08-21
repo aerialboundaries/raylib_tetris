@@ -15,7 +15,7 @@ add_compile_options(-Wall -Wextra -pedantic-errors)
 
 # 2. 実行ファイルの出力先をプロジェクトルートに指定
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # 3. ソースファイルの自動収集
 file(GLOB SRCS "*.c")
