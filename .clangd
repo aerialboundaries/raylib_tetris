@@ -1,13 +1,14 @@
 # ----------------------------------------------------
-# Windows (MinGW) / WSL (Ubuntu) 共用 .clangd
+# Windows (w64devkit) / WSL (Ubuntu) 共用 .clangd
 # ----------------------------------------------------
 
 CompilationDatabase: "build"
 
+
 CompileFlags:
   Compiler: gcc
   QueryDriver:
-    - "C:/mingw64/bin/gcc.exe"
+    - "C:/w64devkit/bin/gcc.exe"
     - "/usr/bin/gcc"
 
   Add:
@@ -17,6 +18,7 @@ CompileFlags:
     # WindowsとWSL双方のraylibインクルードパス
     - "-IC:/raylib/include"
     - "-I/usr/local/include"
+
 
 Diagnostics:
   UnusedIncludes: Strict

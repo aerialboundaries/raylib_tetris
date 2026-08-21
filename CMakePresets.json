@@ -4,20 +4,24 @@
     {
       "name": "win",
       "displayName": "Windows MinGW Cross Compile",
+
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/win",
       "cacheVariables": {
+
         "CMAKE_SYSTEM_NAME": "Windows",
         "CMAKE_C_COMPILER": "x86_64-w64-mingw32-gcc"
       }
     },
     {
       "name": "win-native",
-      "displayName": "Windows Native (MinGW)",
+      "displayName": "Windows Native (w64devkit)",
       "generator": "MinGW Makefiles",
       "binaryDir": "${sourceDir}/build/win-native",
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "C:/mingw64/bin/gcc.exe"
+
+        "CMAKE_C_COMPILER": "C:/w64devkit/bin/gcc.exe"
+
       }
     },
     {
@@ -26,16 +30,20 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/linux",
       "cacheVariables": {
+
         "CMAKE_C_COMPILER": "gcc"
       }
     },
     {
       "name": "web",
       "displayName": "Web (Emscripten)",
+
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/web",
       "cacheVariables": {
+
         "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
+
       }
     }
   ]
