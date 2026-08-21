@@ -1,53 +1,22 @@
 # ----------------------------------------------------
-# Windows (w64devkit) / WSL (Ubuntu) 完全分離版 .clangd
+# Windows (MinGW) / WSL (Ubuntu) 共用 .clangd
 # ----------------------------------------------------
 
-# 1. compile_commands.json の探索
 CompilationDatabase: "build"
 
-# 2. 全環境共通の基本設定
 CompileFlags:
   Compiler: gcc
   QueryDriver:
-    - "C:/raylib/w64devkit/bin/gcc.exe"
-    - "C:/raylib/w64devkit/bin/g++.exe"
+    - "C:/mingw64/bin/gcc.exe"
     - "/usr/bin/gcc"
-    - "/usr/bin/g++"
-    - "/usr/bin/x86_64-w64-mingw32-gcc"
 
   Add:
     - "-std=c99"
     - "-Wall"
     - "-Wextra"
-
----
-# 3. WSL (Linux) 環境専用の設定
-If:
-  PathMatch: .*
-
-CompileFlags:
-
-  Add:
-    - "-I/usr/include"
+    # WindowsとWSL双方のraylibインクルードパス
+    - "-IC:/raylib/include"
     - "-I/usr/local/include"
-  # Windows用のパスが混入しないよう除外
-  Remove:
-    - "-IC:/raylib/w64devkit/include"
-    - "-I/mnt/c/raylib/w64devkit/include"
-
----
-# 4. Windows (w64devkit / MinGW) 環境専用の設定
-If:
-  PathMatch: .*
-  # Windows側のパスが存在する場合の補完定義
-  # (Windows上のnvim起動時のみ参照されます)
-
-CompileFlags:
-  Add:
-
-    - "-IC:/raylib/w64devkit/include"
-    - "-fdeclspec"
 
 Diagnostics:
-
   UnusedIncludes: Strict
