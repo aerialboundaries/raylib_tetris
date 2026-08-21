@@ -15,25 +15,32 @@
     },
     {
 
+      "name": "win-native",
+      "displayName": "Windows Native (w64devkit / MinGW)",
+      "generator": "MinGW Makefiles",
+      "binaryDir": "${sourceDir}/build/win-native",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "C:/raylib/w64devkit/bin/gcc.exe"
+      }
+    },
+    {
       "name": "linux",
       "displayName": "Linux Native (WSL)",
-
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/linux",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc"
       }
     },
-
     {
       "name": "web",
       "displayName": "Web (Emscripten)",
       "generator": "Unix Makefiles",
-
       "binaryDir": "${sourceDir}/build/web",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
       }
     }
   ]
+
 }
