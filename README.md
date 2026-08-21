@@ -72,3 +72,36 @@ vim.keymap.set('n', '<F5>', ':sp | terminal cmake --build build/linux --target r
 
 -- F6キー: Windows版を画面下ターミナルでビルド＆cmd経由実行
 vim.keymap.set('n', '<F6>', ':sp | terminal cmake --build build/win && cmd.exe /c ".\\raylib_tetris.exe"<CR>', { noremap = true, silent = true })
+
+
+-- 実行時の注意：
+音が出なかったりノイズっぽく聞こえたりしていたのは、PulseAudioの不具合ではなく、「作業ディレクトリ（カレントディレクトリ）のズレ」によってBGMやSEのファイルが見つかっていなかったからですね！
+
+原因のメカニズム
+ログにある通り、プログラム実行時の Working Directory（カレントディレクトリ）が build/linux になっています。
+
+そのため、コード内の LoadMusicStream("Sounds/music.mp3") などの相対パスが、プロジェクトルート（raylib_tetris/）からではなく build/linux/Sounds/music.mp3 を探しに行ってしまい、ファイルが開けず無音になっていました。
+
+解決方法（2つのアプローチ）
+最新の main ブランチ（git switch main）に戻った上で、以下のいずれかで対処できます。
+
+方法1: 実行時のワーキングディレクトリをプロジェクトルートにする（推奨）
+build/linux フォルダの中から直接 ./raylib_tetris を叩くのではなく、プロジェクトのルートディレクトリから実行します。
+
+Bash
+# プロジェクトルートに移動
+cd ~/bin/c/raylib_projects/raylib_tetris
+
+# ルートから build 内の実行ファイルを指定して起動
+./build/linux/raylib_tetris
+これだけで、Sounds/ や Font/ の相対パスが正しく認識され、音がクリアに鳴るようになります！
+
+方法2: CMakeLists.txt の make run ターゲットを使う
+さきほど作成した CMakeLists.txt のカスタムターゲット make run は、以下のように作業ディレクトリをプロジェクトルート（CMAKE_CURRENT_SOURCE_DIR）に固定する設定になっています。
+
+CMake
+add_custom_target(run
+    COMMAND $<TARGET_FILE:${PROJECT_NAME}>
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+そのため、今後は直接実行ファイルを踏むのではなく、ルートから make run を使って起動すればこの問題は絶対に起きなくなります。
