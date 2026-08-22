@@ -1,5 +1,6 @@
 /* TODO
- * 1. web version
+
+ * 1. web version (DONE)
  * 2. title screen
  * 3. game level 1-15 with delta time
  * 3. Right / Left Rotation
@@ -13,10 +14,19 @@
 #include <stdlib.h>
 #include <time.h>
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten/emscripten.h>
+#endif
+
 #include "colors.h"
 #include "config.h"
+
 #include "game.h"
 
+// --- グローバル変数 ---
+// Emscriptenのコールバック関数から参照するため、主要な状態を保持します
+static Font font;
+static Game game;
 static double lastUpdateTime = 0;
 
 static bool EventTriggered(double interval)
@@ -29,6 +39,47 @@ static bool EventTriggered(double interval)
   return false;
 }
 
+// 1フレーム分の処理を行う関数（Emscriptenから毎フレーム呼び出されます）
+static void UpdateDrawFrame(void)
+{
+  // 1. ゲーム状態の更新
+  game_update_music(game);
+  game_handle_input(game);
+
+  if (EventTriggered(0.2) && !game_is_lock_delay_active(game)) {
+    game_move_block_down(game);
+  }
+
+  game_update(game);
+
+  // 2. 描画処理
+  BeginDrawing();
+  ClearBackground(colors[darkBlue]);
+  DrawTextEx(font, "Score", (Vector2){365, 15}, 38, 2, WHITE);
+  DrawTextEx(font, "Next", (Vector2){370, 175}, 38, 2, WHITE);
+
+  if (game_is_over(game)) {
+    DrawTextEx(font, "GAME OVER", (Vector2){SIDEBAR_X, 450}, 38, 2, WHITE);
+  }
+
+  DrawRectangleRounded((Rectangle){SIDEBAR_X, 55, 170, 60}, 0.3, 6,
+                       colors[lightBlue]);
+
+  char scoreText[10];
+  sprintf(scoreText, "%d", game_get_score(game));
+  Vector2 textSize = MeasureTextEx(font, scoreText, 38, 2);
+
+  DrawTextEx(font, scoreText,
+
+             (Vector2){SIDEBAR_X + (170 - textSize.x) / 2, 65}, 38, 2, WHITE);
+  DrawRectangleRounded((Rectangle){SIDEBAR_X, 215, 170, 180}, 0.3, 6,
+                       colors[lightBlue]);
+
+  game_draw(game);
+
+  EndDrawing();
+}
+
 int main(void)
 {
 
@@ -36,57 +87,39 @@ int main(void)
 
   InitWindow(500, 620, "raylib Tetris");
 
-  /* open with monitor 0 */
+#if !defined(__EMSCRIPTEN__)
+  /* モニター設定はデスクトップ環境のみ適用します */
   if (TARGET_MONITOR < GetMonitorCount()) {
+
     SetWindowMonitor(TARGET_MONITOR);
   }
 
+#endif
+
   SetTargetFPS(60);
 
-  Font font = LoadFontEx("Font/monogram.ttf", 64, 0, 0);
+  font = LoadFontEx("Font/monogram.ttf", 64, 0, 0);
+  game = create_game();
 
-  Game game = create_game();
+#if defined(__EMSCRIPTEN__)
 
-  // main loop
+  // Web環境：ブラウザにメインループの管理を委ねます
+  // 第2引数: FPS (0でブラウザのrequestAnimationFrameに同期)
+  // 第3引数: Simulate infinite loop (1を指定して非同期実行)
+  emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
+
+#else
+  // デスクトップ環境：従来のwhileループを実行します
   while (!WindowShouldClose()) {
-    game_update_music(game);
-    game_handle_input(game);
-
-    // 【修正】ロック猶予中は、タイマーによる自動落下をスキップする
-    if (EventTriggered(0.2) && !game_is_lock_delay_active(game)) {
-      game_move_block_down(game);
-    }
-
-    // ロック猶予タイマーの監視・ロック処理を毎フレーム行う
-    game_update(game);
-
-    BeginDrawing();
-    ClearBackground(colors[darkBlue]);
-    DrawTextEx(font, "Score", (Vector2){365, 15}, 38, 2, WHITE);
-    DrawTextEx(font, "Next", (Vector2){370, 175}, 38, 2, WHITE);
-    if (game_is_over(game)) {
-      DrawTextEx(font, "GAME OVER", (Vector2){SIDEBAR_X, 450}, 38, 2, WHITE);
-    }
-
-    DrawRectangleRounded((Rectangle){SIDEBAR_X, 55, 170, 60}, 0.3, 6,
-                         colors[lightBlue]);
-
-    char scoreText[10];
-    sprintf(scoreText, "%d", game_get_score(game));
-    Vector2 textSize = MeasureTextEx(font, scoreText, 38, 2);
-
-    DrawTextEx(font, scoreText,
-               (Vector2){SIDEBAR_X + (170 - textSize.x) / 2, 65}, 38, 2, WHITE);
-    DrawRectangleRounded((Rectangle){SIDEBAR_X, 215, 170, 180}, 0.3, 6,
-                         colors[lightBlue]);
-
-    game_draw(game);
-
-    EndDrawing();
+    UpdateDrawFrame();
   }
+
+  // デスクトップ版のクリーンアップ処理
+  UnloadFont(font);
 
   destroy_game(game);
   CloseWindow();
+#endif
 
   return 0;
 }
