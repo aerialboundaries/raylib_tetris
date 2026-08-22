@@ -74,9 +74,9 @@ if(EMSCRIPTEN)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Font")
         string(APPEND EMSCRIPTEN_LINK_FLAGS " --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/Font@/Font")
     endif()
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Sound")
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Sounds")
 
-        string(APPEND EMSCRIPTEN_LINK_FLAGS " --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/Sound@/Sound")
+        string(APPEND EMSCRIPTEN_LINK_FLAGS " --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/Sounds@/Sounds")
     endif()
 
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "${EMSCRIPTEN_LINK_FLAGS}")

@@ -59,9 +59,8 @@ win-native:
 
 web-win:
 	@echo "=== [Web (Emscripten / Windows)] ビルドを開始します ==="
-	call emcmake cmake --preset web-win || emcmake cmake --preset web-win
-
-	cmake --build build/web-win
+	emcmake cmake --preset web
+	cmake --build build/web 
 	@echo "=== [Web (Emscripten / Windows)] ビルド完了 ==="
 
 
